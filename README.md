@@ -4,7 +4,7 @@ This project visualizes incoming traffic packets on an interactive 3D globe.
 
 Traffic data is read from a CSV file, replayed in timestamp order, sent to a Flask backend, and displayed in real time on the frontend. The visual style is intentionally minimal: black background, dark globe, and acid-green packet markers that slowly fade out to avoid visual overload.
 
-This project runs in Docker Compose with two containers: `backend` (Flask serves both UI and API) and `sender`.
+This project runs in Docker Compose with three containers: `backend` (Flask API), `frontend` (Nginx static UI + API proxy), and `sender`.
 
 ## Tech Stack
 
@@ -22,15 +22,19 @@ docker compose up --build
 ```
 
 After startup:
-`http://localhost:5000`
+- Frontend UI: `http://localhost:8080`
+- Backend API (direct): `http://localhost:5000`
 
 ## Services
 
 - `backend` (Flask):
-  - serves `frontend/index.html` and `frontend/static/*`
+  - receives packets from sender
   - `GET /receive` - ingest packet
   - `GET /packets` - list packets
   - `GET /health` - healthcheck
+- `frontend` (Nginx):
+  - serves `frontend/index.html` and `frontend/static/*`
+  - proxies API calls (`/packets`, `/receive`, `/health`) to `backend:5000`
 - `sender` (Python):
   - waits until `backend` is healthy
   - sends packets from `sender/ip_addresses.csv`
@@ -43,7 +47,9 @@ traffic_visualization/
 |   |-- flask_server_visual.py
 |   `-- Dockerfile
 |-- frontend/
+|   |-- Dockerfile
 |   |-- index.html
+|   |-- nginx.conf
 |   `-- static/
 |       |-- app.js
 |       `-- style.css
@@ -85,7 +91,7 @@ curl "http://localhost:5000/receive?ip_address=8.8.8.8&latitude=37.3860&longitud
 Fetch frontend HTML:
 
 ```bash
-curl http://localhost:5000/
+curl http://localhost:8080/
 ```
 
 ## Useful commands

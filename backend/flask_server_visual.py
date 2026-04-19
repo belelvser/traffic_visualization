@@ -1,22 +1,17 @@
 import os
-from pathlib import Path
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-app = Flask(
-    __name__,
-    template_folder=str(BASE_DIR / "frontend"),
-    static_folder=str(BASE_DIR / "frontend" / "static"),
-    static_url_path="/static"
-)
+app = Flask(__name__)
 
 packets = []
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return jsonify({
+        "status": "running",
+        "message": "Traffic backend API is running"
+    })
 
 
 @app.route("/receive", methods=["GET"])
