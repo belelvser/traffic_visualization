@@ -152,13 +152,79 @@ const PACKET_SCALE_NORMAL = 0.18;
 const PACKET_SCALE_SUSPICIOUS = 0.26;
 const PACKET_OPACITY_NORMAL = 0.74;
 const PACKET_OPACITY_SUSPICIOUS = 0.92;
+const CURSOR_STORAGE_KEY = 'traffic.packetCursor';
+const META_AFTER_VALUE = 2147483647;
 
 let totalPackets = 0;
 let suspiciousPackets = 0;
-let packetCursor = 0;
+let packetCursor = readStoredCursor();
 let showOnlySuspicious = false;
 let packetHistory = [];
 let visibleEntries = [];
+
+function readStoredCursor() {
+  try {
+    const raw = window.localStorage.getItem(CURSOR_STORAGE_KEY);
+    if (raw === null) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveCursor(cursor) {
+  try {
+    window.localStorage.setItem(CURSOR_STORAGE_KEY, String(cursor));
+  } catch (error) {
+    // Ignore storage errors (private mode / disabled storage).
+  }
+}
+
+function clearVisiblePackets() {
+  for (const entry of visibleEntries) {
+    packetsGroup.remove(entry.sprite);
+    entry.sprite.material.dispose();
+  }
+
+  visibleEntries = [];
+  packetHistory = [];
+  suspiciousPackets = 0;
+}
+
+async function initializePacketCursor() {
+  try {
+    const response = await fetch(`/packets?after=${META_AFTER_VALUE}`);
+    if (!response.ok) {
+      throw new Error(`Cursor init failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const serverTotalPackets = Math.max(0, Number.parseInt(data.total_packets, 10) || 0);
+
+    totalPackets = serverTotalPackets;
+
+    if (packetCursor === null) {
+      packetCursor = serverTotalPackets;
+    } else if (packetCursor > serverTotalPackets) {
+      packetCursor = serverTotalPackets;
+      clearVisiblePackets();
+    }
+
+    saveCursor(packetCursor);
+    updateStats();
+  } catch (error) {
+    console.error('Packet cursor init error:', error);
+    if (packetCursor === null) {
+      packetCursor = 0;
+      saveCursor(packetCursor);
+    }
+    updateStats();
+  }
+}
 
 function createGlowTexture() {
   const size = 128;
@@ -412,18 +478,33 @@ function rebuildVisiblePackets() {
 }
 
 async function pollPackets() {
+  if (packetCursor === null) {
+    return;
+  }
+
   try {
     const response = await fetch(`/packets?after=${packetCursor}`);
+    if (!response.ok) {
+      throw new Error(`Polling failed with status ${response.status}`);
+    }
+
     const data = await response.json();
-    const newPackets = data.packets || [];
+    const serverTotalPackets = Math.max(0, Number.parseInt(data.total_packets, 10) || 0);
+    const newPackets = Array.isArray(data.packets) ? data.packets : [];
 
     if (newPackets.length > 0) {
       packetCursor += newPackets.length;
-      totalPackets = data.total_packets;
+      saveCursor(packetCursor);
+      totalPackets = serverTotalPackets;
       suspiciousPackets += newPackets.reduce((sum, packet) => sum + (packet.suspicious === 1 ? 1 : 0), 0);
       addPacketsToScene(newPackets);
     } else {
-      totalPackets = data.total_packets;
+      totalPackets = serverTotalPackets;
+      if (packetCursor > totalPackets) {
+        packetCursor = totalPackets;
+        saveCursor(packetCursor);
+        clearVisiblePackets();
+      }
       updateStats();
     }
   } catch (error) {
@@ -523,7 +604,9 @@ toggleSuspiciousBtn.addEventListener('click', () => {
 });
 
 addCountryBorders();
-pollPackets();
-setInterval(pollPackets, 700);
+initializePacketCursor().then(() => {
+  pollPackets();
+  setInterval(pollPackets, 700);
+});
 animate();
 }
