@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Traffic Visualisation</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="globe"></div>
+
+    <div class="panel top-left">
+      <div class="panel-title">Traffic Visualisation</div>
+      <div class="stat-row">
+        <span class="stat-label">Total packets</span>
+        <span class="stat-value" id="totalPackets">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Suspicious</span>
+        <span class="stat-value" id="suspiciousPackets">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Visible points</span>
+        <span class="stat-value" id="visiblePoints">0</span>
+      </div>
+    </div>
+
+    <div class="panel top-right controls">
+      <button id="toggleRotation" class="control-btn" type="button">Pause rotation</button>
+      <button id="toggleSuspicious" class="control-btn" type="button">Show only suspicious: off</button>
+    </div>
+
+    <div class="panel bottom-left hint">
+      <div>Drag to rotate</div>
+      <div>Scroll to zoom</div>
+      <div>Hover points for details</div>
+    </div>
+
+    <div id="tooltip"></div>
+  </div>
+
+  <script type="module" src="static/app.js"></script>
+</body>
+</html>

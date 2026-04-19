@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      FLASK_HOST: 0.0.0.0
+      FLASK_PORT: "5000"
+      FLASK_DEBUG: "false"
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health').read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  sender:
+    build:
+      context: .
+      dockerfile: sender/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      SERVER_URL: "http://backend:5000/receive"
+      CSV_FILE: "/app/sender/ip_addresses.csv"
+      TIME_SCALE: "1.0"
+      STARTUP_RETRIES: "30"
+      STARTUP_DELAY_SECONDS: "1.0"
+      REQUEST_TIMEOUT: "5.0"
